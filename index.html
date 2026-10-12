@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fffaf4">
+<title>状態記録</title>
+<style>
+  :root{
+    --bg:#fffaf4;
+    --card:#ffffff;
+    --ink:#2f2b28;
+    --sub:#7c746d;
+    --line:#eadfd4;
+    --accent:#8c6b52;
+    --today:#fff2d8;
+    --selected:#f4e7da;
+    --shadow:0 8px 24px rgba(74,55,40,.08);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;
+  }
+  .app{max-width:680px;margin:0 auto;padding:16px 12px 32px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  h1{font-size:20px;margin:0;font-weight:750;letter-spacing:.02em}
+  .nav{display:flex;align-items:center;gap:8px}
+  button{
+    font:inherit;color:inherit;border:1px solid var(--line);background:var(--card);
+    border-radius:12px;padding:10px 12px;cursor:pointer;
+  }
+  button:active{transform:translateY(1px)}
+  .month{
+    min-width:132px;text-align:center;font-weight:750;font-size:18px;
+  }
+  .calendar{
+    background:var(--card);border:1px solid var(--line);border-radius:18px;
+    overflow:hidden;box-shadow:var(--shadow);
+  }
+  .week,.grid{display:grid;grid-template-columns:repeat(7,1fr)}
+  .week div{
+    text-align:center;padding:9px 0;font-size:12px;color:var(--sub);
+    border-bottom:1px solid var(--line);
+  }
+  .week div:first-child{color:#b15d5d}
+  .week div:last-child{color:#5576a9}
+  .grid{grid-auto-rows:84px}
+  .day{
+    height:84px;padding:6px 5px;border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);background:#fff;position:relative;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  }
+  .day:nth-child(7n){border-right:none}
+  .day.empty{background:#fbf8f5}
+  .day:not(.empty){cursor:pointer}
+  .day.today{background:var(--today)}
+  .day.selected{
+    background:var(--selected);
+    box-shadow: inset 0 0 0 2px #d8bda7;
+  }
+  .date{font-size:12px;color:var(--sub);line-height:1;position:relative;z-index:2}
+  .symbolWrap{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    padding-top:8px;pointer-events:none;
+  }
+  .symbolIcon{
+    width:34px;height:34px;display:block;color:#2f2b28;
+  }
+  .memoBadge{
+    position:absolute;right:6px;bottom:6px;width:16px;height:16px;
+    border:1px solid #cfb8a2;border-radius:4px;background:#fff8ef;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 0 rgba(0,0,0,.03);
+  }
+  .memoBadge svg{width:11px;height:11px;display:block;color:#9a7659}
+  .selectedInfo{
+    margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:12px 14px;box-shadow:var(--shadow);
+  }
+  .selectedTop{
+    display:flex;align-items:center;gap:8px;margin-bottom:3px;min-height:28px;
+  }
+  .selectedDate{
+    font-size:14px;font-weight:700;
+  }
+  .selectedMemo{
+    font-size:14px;color:#5e564f;line-height:1.32;
+    display:-webkit-box;
+    -webkit-box-orient:vertical;
+    -webkit-line-clamp:3;
+    overflow:hidden;
+    white-space:normal;
+  }
+  .selectedMemo.empty{color:#9b938b}
+  .summary{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;
+  }
+  .sum{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:10px;text-align:center;box-shadow:var(--shadow);
+  }
+  .sumTop{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:3px}
+  .sumTop b{font-size:23px;line-height:1}
+  .sum span{font-size:12px;color:var(--sub)}
+  .sum .symbolIcon{width:20px;height:20px}
+  details{
+    margin-top:14px;background:rgba(255,255,255,.65);border:1px solid var(--line);
+    border-radius:14px;padding:10px 12px;
+  }
+  summary{cursor:pointer;font-size:13px;color:var(--sub)}
+  .backup{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .backup button{font-size:13px;padding:8px 10px}
+  input[type=file]{display:none}
+  .overlay{
+    position:fixed;inset:0;background:rgba(32,24,19,.32);display:none;
+    align-items:flex-end;justify-content:center;padding:12px;z-index:10;
+  }
+  .overlay.show{display:flex}
+  .sheet{
+    width:min(100%,680px);background:var(--card);border-radius:20px 20px 16px 16px;
+    padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.18);
+  }
+  .sheet h2{margin:0 0 14px;font-size:17px}
+  .choices{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}
+  .choice{
+    padding:11px 0;font-weight:700;display:flex;align-items:center;justify-content:center;
+    min-height:56px;
+  }
+  .choice .symbolIcon{width:28px;height:28px}
+  .choice.selected{outline:3px solid #d9c1ad;border-color:#b89578}
+  .choiceText{font-size:14px;color:var(--sub)}
+  label{font-size:12px;color:var(--sub);display:block;margin-bottom:6px}
+  .memoInput{
+    width:100%;border:1px solid var(--line);border-radius:12px;padding:12px 13px;
+    font:inherit;font-size:16px;color:var(--ink);outline:none;
+  }
+  .memoInput:focus{border-color:#b89578;box-shadow:0 0 0 3px #f2e4d8}
+  .actions{display:flex;justify-content:flex-end;gap:9px;margin-top:14px}
+  .primary{background:#8c6b52;color:white;border-color:#8c6b52}
+  @media (max-width:420px){
+    .app{padding:12px 8px 24px}
+    h1{font-size:17px}
+    .month{min-width:104px;font-size:16px}
+    button{padding:9px 10px}
+    .grid{grid-auto-rows:74px}
+    .day{height:74px;padding:5px 4px}
+    .symbolIcon{width:30px;height:30px}
+    .memoBadge{right:5px;bottom:5px;width:14px;height:14px}
+    .memoBadge svg{width:9px;height:9px}
+    .selectedDate,.selectedMemo{font-size:13px}
+  }
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="状態記録">
+
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>状態記録</h1>
+    <div class="nav">
+      <button id="prev" aria-label="前の月">‹</button>
+      <div class="month" id="monthLabel"></div>
+      <button id="next" aria-label="次の月">›</button>
+    </div>
+  </header>
+
+  <section class="calendar">
+    <div class="week">
+      <div>日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div>土</div>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="selectedInfo">
+    <div class="selectedTop">
+      <span id="selectedIcon"></span>
+      <div class="selectedDate" id="selectedDate"></div>
+    </div>
+    <div class="selectedMemo" id="selectedMemo"></div>
+  </section>
+
+  <section class="summary">
+    <div class="sum">
+      <div class="sumTop"><span id="iconO"></span><b id="countO">0</b></div>
+      <span>○ の日</span>
+    </div>
+    <div class="sum">
+      <div class="sumTop"><span id="iconT"></span><b id="countT">0</b></div>
+      <span>△ の日</span>
+    </div>
+    <div class="sum">
+      <div class="sumTop"><span id="iconX"></span><b id="countX">0</b></div>
+      <span>× の日</span>
+    </div>
+  </section>
+
+  <details>
+    <summary>バックアップ</summary>
+    <div class="backup">
+      <button id="exportBtn">データを書き出す</button>
+      <button id="importBtn">データを読み込む</button>
+      <input id="fileInput" type="file" accept="application/json">
+    </div>
+  </details>
+</div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <h2 id="editDate"></h2>
+    <div class="choices">
+      <button class="choice" data-symbol="○" aria-label="○"></button>
+      <button class="choice" data-symbol="△" aria-label="△"></button>
+      <button class="choice" data-symbol="×" aria-label="×"></button>
+      <button class="choice" data-symbol="" aria-label="消す"><span class="choiceText">消す</span></button>
+    </div>
+    <label for="memoInput">一行メモ</label>
+    <input class="memoInput" id="memoInput" maxlength="60" placeholder="例：3限から登校／朝は落ち着いていた">
+    <div class="actions">
+      <button id="cancelBtn">閉じる</button>
+      <button class="primary" id="saveBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'condition-calendar-v1';
+  const LONG_PRESS_MS = 420;
+
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {}; } catch(e) { data = {}; }
+
+  const now = new Date();
+  let current = new Date(now.getFullYear(), now.getMonth(), 1);
+  let editingKey = null;
+  let selectedSymbol = '';
+  let selectedDayKey = keyOf(now.getFullYear(), now.getMonth(), now.getDate());
+  let pressTimer = null;
+  let longPressTriggered = false;
+
+  const $ = (id) => document.getElementById(id);
+  const grid = $('grid');
+  const overlay = $('overlay');
+
+  function iconSVG(symbol, cls='symbolIcon'){
+    if(symbol === '○'){
+      return `<svg class="${cls}" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="24" cy="24" r="15" stroke="currentColor" stroke-width="4.5" />
+      </svg>`;
+    }
+    if(symbol === '△'){
+      return `<svg class="${cls}" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M24 10 L38 35 H10 Z" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/>
+      </svg>`;
+    }
+    if(symbol === '×'){
+      return `<svg class="${cls}" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <path d="M14 14 L34 34 M34 14 L14 34" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+      </svg>`;
+    }
+    return '';
+  }
+
+  function memoBadgeSVG(){
+    return `<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M7 4.5h7l4 4V19a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <path d="M14 4.5v4h4" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  function keyOf(y,m,d){
+    return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+
+  function parseKey(key){
+    const [y,m,d] = key.split('-').map(Number);
+    return {y,m,d};
+  }
+
+  function saveAll(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function setSelectedDay(key){
+    selectedDayKey = key;
+    updateSelectedInfo();
+    render();
+  }
+
+  function updateSelectedInfo(){
+    const {y,m,d} = parseKey(selectedDayKey);
+    const rec = data[selectedDayKey] || {symbol:'', memo:''};
+    $('selectedDate').textContent = `${y}年${m}月${d}日`;
+    $('selectedIcon').innerHTML = rec.symbol ? iconSVG(rec.symbol, 'symbolIcon') : '';
+    const memoEl = $('selectedMemo');
+    if(rec.memo){
+      memoEl.textContent = rec.memo;
+      memoEl.classList.remove('empty');
+    } else {
+      memoEl.textContent = 'メモはありません';
+      memoEl.classList.add('empty');
+    }
+  }
+
+  function firstDayKeyOfCurrentMonth(){
+    return keyOf(current.getFullYear(), current.getMonth(), 1);
+  }
+
+  function ensureSelectedDayInMonth(){
+    const {y,m} = parseKey(selectedDayKey);
+    if(y !== current.getFullYear() || (m - 1) !== current.getMonth()){
+      selectedDayKey = firstDayKeyOfCurrentMonth();
+    }
+  }
+
+  function attachPressHandlers(cell, k, y, m, d){
+    const startPress = () => {
+      if(cell.classList.contains('empty')) return;
+      longPressTriggered = false;
+      clearTimeout(pressTimer);
+      pressTimer = setTimeout(() => {
+        longPressTriggered = true;
+        setSelectedDay(k);
+        openEditor(k, y, m, d);
+      }, LONG_PRESS_MS);
+    };
+
+    const cancelPress = () => {
+      clearTimeout(pressTimer);
+    };
+
+    cell.addEventListener('pointerdown', startPress);
+    cell.addEventListener('pointerup', cancelPress);
+    cell.addEventListener('pointerleave', cancelPress);
+    cell.addEventListener('pointercancel', cancelPress);
+
+    cell.addEventListener('click', () => {
+      if(cell.classList.contains('empty')) return;
+      if(longPressTriggered){
+        longPressTriggered = false;
+        return;
+      }
+      setSelectedDay(k);
+    });
+  }
+
+  function render(){
+    ensureSelectedDayInMonth();
+
+    const y = current.getFullYear();
+    const m = current.getMonth();
+    $('monthLabel').textContent = `${y}年 ${m+1}月`;
+    grid.innerHTML = '';
+
+    const firstDow = new Date(y,m,1).getDay();
+    const days = new Date(y,m+1,0).getDate();
+    const totalCells = Math.ceil((firstDow + days)/7)*7;
+
+    let counts = {'○':0,'△':0,'×':0};
+
+    for(let i=0;i<totalCells;i++){
+      const cell = document.createElement('div');
+      cell.className = 'day';
+      const d = i - firstDow + 1;
+
+      if(d < 1 || d > days){
+        cell.classList.add('empty');
+      } else {
+        const k = keyOf(y,m,d);
+        const rec = data[k] || {symbol:'', memo:''};
+        if(rec.symbol && counts[rec.symbol] !== undefined) counts[rec.symbol]++;
+
+        const isToday = y===now.getFullYear() && m===now.getMonth() && d===now.getDate();
+        if(isToday) cell.classList.add('today');
+        if(k === selectedDayKey) cell.classList.add('selected');
+
+        const date = document.createElement('div');
+        date.className = 'date';
+        date.textContent = d;
+        cell.appendChild(date);
+
+        if(rec.symbol){
+          const symbolWrap = document.createElement('div');
+          symbolWrap.className = 'symbolWrap';
+          symbolWrap.innerHTML = iconSVG(rec.symbol);
+          cell.appendChild(symbolWrap);
+        }
+
+        if(rec.memo){
+          const badge = document.createElement('div');
+          badge.className = 'memoBadge';
+          badge.innerHTML = memoBadgeSVG();
+          cell.appendChild(badge);
+        }
+
+        attachPressHandlers(cell, k, y, m, d);
+      }
+      grid.appendChild(cell);
+    }
+
+    $('countO').textContent = counts['○'];
+    $('countT').textContent = counts['△'];
+    $('countX').textContent = counts['×'];
+    $('iconO').innerHTML = iconSVG('○');
+    $('iconT').innerHTML = iconSVG('△');
+    $('iconX').innerHTML = iconSVG('×');
+
+    updateSelectedInfo();
+  }
+
+  function openEditor(k,y,m,d){
+    editingKey = k;
+    const rec = data[k] || {symbol:'', memo:''};
+    selectedSymbol = rec.symbol || '';
+    $('editDate').textContent = `${y}年${m+1}月${d}日`;
+    $('memoInput').value = rec.memo || '';
+    document.querySelectorAll('.choice').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.symbol === selectedSymbol);
+    });
+    overlay.classList.add('show');
+    setTimeout(() => $('memoInput').focus(), 120);
+  }
+
+  document.querySelectorAll('.choice').forEach(btn => {
+    const symbol = btn.dataset.symbol;
+    if(symbol){
+      btn.innerHTML = iconSVG(symbol);
+    }
+    btn.addEventListener('click', () => {
+      selectedSymbol = btn.dataset.symbol;
+      document.querySelectorAll('.choice').forEach(b => b.classList.toggle('selected', b===btn));
+    });
+  });
+
+  $('saveBtn').addEventListener('click', () => {
+    if(!editingKey) return;
+    const memo = $('memoInput').value.trim();
+    if(!selectedSymbol && !memo){
+      delete data[editingKey];
+    } else {
+      data[editingKey] = {symbol:selectedSymbol, memo};
+    }
+    saveAll();
+    overlay.classList.remove('show');
+    updateSelectedInfo();
+    render();
+  });
+
+  $('cancelBtn').addEventListener('click', () => overlay.classList.remove('show'));
+  overlay.addEventListener('click', (e) => {
+    if(e.target === overlay) overlay.classList.remove('show');
+  });
+
+  $('prev').addEventListener('click', () => {
+    current = new Date(current.getFullYear(), current.getMonth()-1, 1);
+    selectedDayKey = firstDayKeyOfCurrentMonth();
+    render();
+  });
+  $('next').addEventListener('click', () => {
+    current = new Date(current.getFullYear(), current.getMonth()+1, 1);
+    selectedDayKey = firstDayKeyOfCurrentMonth();
+    render();
+  });
+
+  $('exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `状態記録バックアップ_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  $('importBtn').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    try{
+      const incoming = JSON.parse(await file.text());
+      if(!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error();
+      if(confirm('現在の記録にバックアップ内容を上書きして読み込みますか？')){
+        data = incoming;
+        saveAll();
+        render();
+        alert('読み込みました。');
+      }
+    }catch(err){
+      alert('このファイルは読み込めませんでした。');
+    }
+    e.target.value = '';
+  });
+
+  render();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+  });
+}
+</script>
+
+</body>
+</html>
