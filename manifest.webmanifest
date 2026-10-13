@@ -1,12 +1,11 @@
 {
-  "id": "./state-record-app-v5",
+  "id": "./state-record",
   "name": "状態記録",
   "short_name": "状態記録",
   "description": "○△×と一行メモで状態を記録するカレンダー",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#fffaf4",
   "theme_color": "#fffaf4",
   "orientation": "portrait-primary",

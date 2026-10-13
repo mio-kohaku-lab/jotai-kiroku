@@ -150,9 +150,36 @@
     .memoBadge svg{width:9px;height:9px}
     .selectedDate,.selectedMemo{font-size:13px}
   }
+
+  .installBox{
+    display:none;
+    margin-top:14px;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px;
+    box-shadow:var(--shadow);
+  }
+  .installBox.show{display:block}
+  .installButton{
+    width:100%;
+    background:#8c6b52;
+    color:#fff;
+    border-color:#8c6b52;
+    font-weight:700;
+  }
+  .installNote{
+    display:none;
+    margin-top:8px;
+    font-size:12px;
+    color:var(--sub);
+    line-height:1.5;
+  }
+  .installNote.show{display:block}
+
 </style>
 
-<link rel="manifest" href="manifest.webmanifest?v=5">
+<link rel="manifest" href="manifest.webmanifest?v=6">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -199,6 +226,12 @@
       <div class="sumTop"><span id="iconX"></span><b id="countX">0</b></div>
       <span>× の日</span>
     </div>
+  </section>
+
+
+  <section class="installBox" id="installBox">
+    <button class="installButton" id="installButton">アプリとしてインストール</button>
+    <div class="installNote" id="installNote"></div>
   </section>
 
   <details>
@@ -505,9 +538,75 @@
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js', { updateViaCache: 'none' }).catch(console.error);
+    navigator.serviceWorker.register('./service-worker.js?v=6', { updateViaCache: 'none' }).catch(console.error);
   });
 }
+</script>
+
+
+<script>
+(() => {
+  let deferredInstallPrompt = null;
+  const installBox = document.getElementById('installBox');
+  const installButton = document.getElementById('installButton');
+  const installNote = document.getElementById('installNote');
+
+  function showInstallBox() {
+    if (installBox) installBox.classList.add('show');
+  }
+
+  function showNote(message) {
+    if (!installNote) return;
+    installNote.textContent = message;
+    installNote.classList.add('show');
+  }
+
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    showInstallBox();
+    showNote('Chromeの正式なインストール候補を受け取りました。');
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    if (installBox) installBox.classList.remove('show');
+  });
+
+  if (installButton) {
+    installButton.addEventListener('click', async () => {
+      if (!deferredInstallPrompt) {
+        showInstallBox();
+        showNote('まだChromeからインストール候補を受け取れていません。ページを再読み込みして、少し待ってからもう一度試してください。');
+        return;
+      }
+
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+
+      try {
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+
+        if (choice && choice.outcome === 'accepted') {
+          showNote('インストールを開始しました。');
+        } else {
+          showNote('今回はインストールしませんでした。');
+        }
+      } catch (error) {
+        showNote('インストール画面を開けませんでした。Chrome側の判定をもう一度確認します。');
+      }
+    });
+  }
+
+  // Debug helper: if Chrome does not emit beforeinstallprompt, expose a small tester after a delay.
+  window.setTimeout(() => {
+    if (!deferredInstallPrompt && installBox) {
+      installBox.classList.add('show');
+      showNote('Chromeがまだ正式なインストール候補を返していません。ボタンを押すと現在の状態を確認できます。');
+    }
+  }, 2500);
+})();
 </script>
 
 </body>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'jotai-kiroku-v5';
+const CACHE_NAME = 'jotai-kiroku-v6';
 const APP_SHELL = [
   './',
   './index.html',
