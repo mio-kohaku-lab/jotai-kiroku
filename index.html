@@ -179,7 +179,7 @@
 
 </style>
 
-<link rel="manifest" href="manifest.webmanifest?v=6">
+<link rel="manifest" href="manifest.webmanifest?v=7">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -538,7 +538,7 @@
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./service-worker.js?v=6', { updateViaCache: 'none' }).catch(console.error);
+    navigator.serviceWorker.register('./service-worker.js?v=7', { updateViaCache: 'none' }).catch(console.error);
   });
 }
 </script>
@@ -551,33 +551,36 @@ if ('serviceWorker' in navigator) {
   const installButton = document.getElementById('installButton');
   const installNote = document.getElementById('installNote');
 
-  function showInstallBox() {
-    if (installBox) installBox.classList.add('show');
-  }
+  const isStandalone = () =>
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
 
-  function showNote(message) {
-    if (!installNote) return;
-    installNote.textContent = message;
-    installNote.classList.add('show');
-  }
+  const hideInstallBox = () => {
+    if (installBox) installBox.classList.remove('show');
+  };
+
+  const showInstallBox = () => {
+    if (!isStandalone() && installBox) installBox.classList.add('show');
+  };
+
+  if (isStandalone()) hideInstallBox();
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
     deferredInstallPrompt = event;
+    if (installNote) installNote.classList.remove('show');
     showInstallBox();
-    showNote('Chromeの正式なインストール候補を受け取りました。');
   });
 
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
-    if (installBox) installBox.classList.remove('show');
+    hideInstallBox();
   });
 
   if (installButton) {
     installButton.addEventListener('click', async () => {
-      if (!deferredInstallPrompt) {
-        showInstallBox();
-        showNote('まだChromeからインストール候補を受け取れていません。ページを再読み込みして、少し待ってからもう一度試してください。');
+      if (isStandalone() || !deferredInstallPrompt) {
+        hideInstallBox();
         return;
       }
 
@@ -587,25 +590,22 @@ if ('serviceWorker' in navigator) {
       try {
         await promptEvent.prompt();
         const choice = await promptEvent.userChoice;
-
-        if (choice && choice.outcome === 'accepted') {
-          showNote('インストールを開始しました。');
-        } else {
-          showNote('今回はインストールしませんでした。');
-        }
+        if (choice && choice.outcome === 'accepted') hideInstallBox();
       } catch (error) {
-        showNote('インストール画面を開けませんでした。Chrome側の判定をもう一度確認します。');
+        if (installNote) {
+          installNote.textContent = 'インストール画面を開けませんでした。';
+          installNote.classList.add('show');
+        }
       }
     });
   }
 
-  // Debug helper: if Chrome does not emit beforeinstallprompt, expose a small tester after a delay.
-  window.setTimeout(() => {
-    if (!deferredInstallPrompt && installBox) {
-      installBox.classList.add('show');
-      showNote('Chromeがまだ正式なインストール候補を返していません。ボタンを押すと現在の状態を確認できます。');
-    }
-  }, 2500);
+  const modeQuery = window.matchMedia('(display-mode: standalone)');
+  if (modeQuery.addEventListener) {
+    modeQuery.addEventListener('change', (event) => {
+      if (event.matches) hideInstallBox();
+    });
+  }
 })();
 </script>
 
