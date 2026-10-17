@@ -1,7 +1,8 @@
-const CACHE_NAME = 'jotai-kiroku-v7';
+const CACHE_NAME = 'jotai-kiroku-v8';
 const APP_SHELL = [
   './',
   './index.html',
+  './holidays.js',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png'
@@ -38,3 +39,4 @@ self.addEventListener('fetch', event => {
     )
   );
 });
+
